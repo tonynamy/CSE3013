@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/ubuntu/sogang_cs/cse3013'
+make: Leaving directory '/home/ubuntu/sogang_cs/cse3013'
+ 
+make: *** No targets specified and no makefile found.  Stop.
+
