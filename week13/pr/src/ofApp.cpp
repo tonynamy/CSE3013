@@ -457,11 +457,9 @@ void ofApp::freeMemory() {
 
 bool ofApp::DFS()
 {
-	// DFS 탐색 스택
 	stack<pair<int, int>> dfsStack;
 	dfsStack.push({ 0, 0 });
 
-	// 탈출 경로 스택
 	stack<pair<int, int>> escapeStack;
 
 	while (!dfsStack.empty()) {
@@ -472,18 +470,14 @@ bool ofApp::DFS()
 		int i = top.first;
 		int j = top.second;
 
-		// 방문한 경로이면 건너뛰기
 		if (route[i * WIDTH + j] & ROUTE_BFS) {
 			continue;
 		}
 
-		// 우선 탈출 경로에 추가
 		escapeStack.push(top);
 
-		// 방문 표시
 		route[i * WIDTH + j] |= ROUTE_BFS;
 
-		// 종점이면 break
 		if (i == HEIGHT - 1 && j == WIDTH - 1) break;
 
 		int originalSize = dfsStack.size();
@@ -501,8 +495,6 @@ bool ofApp::DFS()
 			dfsStack.push({ i, j + 1 });
 		}
 
-		// 더 이상 진행할 길이 없고
-		// dfsStack이 비어있지 않은 경우
 		if (originalSize == dfsStack.size() && !dfsStack.empty()) {
 
 			top = dfsStack.top();
@@ -510,7 +502,6 @@ bool ofApp::DFS()
 			i = top.first;
 			j = top.second;
 
-			// dfs 마지막 탐색 지점을 갈 수 있는 정점을 방문할 때까지 탈출 경로 stack pop
 			while (!escapeStack.empty()) {
 
 				auto rTop = escapeStack.top();
@@ -537,7 +528,6 @@ bool ofApp::DFS()
 		}
 	}
 
-	// 탈출 경로들에 flag 추가
 	while (!escapeStack.empty()) {
 		auto top = escapeStack.top();
 		escapeStack.pop();
