@@ -41,7 +41,6 @@ void ofApp::setup() {
 	// Get the window size for image loading
 	windowWidth = ofGetWidth();
 	windowHeight = ofGetHeight();
-	isdfs = false;
 	isOpen = 0;
 	// Centre on the screen
 	ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
@@ -97,7 +96,7 @@ void ofApp::setup() {
 	bShowInfo = true;  // screen info display on
 	menu->AddPopupItem(hPopup, "Show DFS", false, false); // Checked
 	bTopmost = false; // app is topmost
-	menu->AddPopupItem(hPopup, "Show BFS"); // Not checked (default)
+	menu->AddPopupItem(hPopup, "Show BFS", false, false); // Not checked (default)
 	bFullscreen = false; // not fullscreen yet
 	menu->AddPopupItem(hPopup, "Full screen", false, false); // Not checked and not auto-check
 
@@ -109,6 +108,10 @@ void ofApp::setup() {
 
 	// Set the menu to the window
 	menu->SetWindowMenu();
+
+	escapeRouteColor = ofColor(129, 205, 251);
+	dfsRouteColor = ofColor(236, 152, 196);
+	bfsRouteColor = ofColor(200, 111, 215);
 
 } // end Setup
 
@@ -132,6 +135,8 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 		readFile();
 	}
 	if (title == "Exit") {
+		isOpen = 0;
+		freeMemory();
 		ofExit(); // Quit the application
 	}
 
@@ -142,7 +147,7 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 		//bShowInfo = bChecked;  // Flag is used elsewhere in Draw()
 		if (isOpen)
 		{
-			DFS();
+			isDFS = DFS();
 			bShowInfo = bChecked;
 		}
 		else
@@ -152,6 +157,14 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 
 	if (title == "Show BFS") {
 		doTopmost(bChecked); // Use the checked value directly
+
+		if (isOpen)
+		{
+			isBFS = BFS();
+			bShowInfo = bChecked;
+		}
+		else
+			cout << "you must open file first" << endl;
 
 	}
 
@@ -190,32 +203,34 @@ void ofApp::draw() {
 
 	if (isOpen) {
 
+		maze_size = (min(ofGetHeight(), ofGetWidth()) - MAZE_OFFSET) / max(WIDTH, HEIGHT);
+		x_offset = (ofGetWidth() - maze_size * WIDTH) / 2;
+		y_offset = (ofGetHeight() - maze_size * HEIGHT) / 2;
+
 		for (int i = 0; i < HEIGHT; i++) {
 			for (int j = 0; j < WIDTH; j++) {
 
-				if (maze[i * WIDTH + j] & WALL_UP) ofDrawLine(j * MAZE_SIZE, i * MAZE_SIZE, (j + 1) * MAZE_SIZE, i * MAZE_SIZE);
-				if (maze[i * WIDTH + j] & WALL_DOWN) ofDrawLine(j * MAZE_SIZE, (i + 1) * MAZE_SIZE, (j + 1) * MAZE_SIZE, (i + 1) * MAZE_SIZE);
-				if (maze[i * WIDTH + j] & WALL_LEFT) ofDrawLine(j * MAZE_SIZE, i * MAZE_SIZE, j * MAZE_SIZE, (i + 1) * MAZE_SIZE);
-				if (maze[i * WIDTH + j] & WALL_RIGHT) ofDrawLine((j + 1) * MAZE_SIZE, i * MAZE_SIZE, (j + 1) * MAZE_SIZE, (i + 1) * MAZE_SIZE);
+				if (maze[i * WIDTH + j] & WALL_UP) ofDrawLine(x_offset+j * maze_size, y_offset+i * maze_size, x_offset+(j + 1) * maze_size, y_offset + i * maze_size);
+				if (maze[i * WIDTH + j] & WALL_DOWN) ofDrawLine(x_offset+j * maze_size, y_offset + (i + 1) * maze_size, x_offset+(j + 1) * maze_size, y_offset + (i + 1) * maze_size);
+				if (maze[i * WIDTH + j] & WALL_LEFT) ofDrawLine(x_offset+j * maze_size, y_offset + i * maze_size, x_offset+j * maze_size, y_offset + (i + 1) * maze_size);
+				if (maze[i * WIDTH + j] & WALL_RIGHT) ofDrawLine(x_offset+(j + 1) * maze_size, y_offset + i * maze_size, x_offset+(j + 1) * maze_size, y_offset + (i + 1) * maze_size);
 
 			}
 		}
 	}
 
-	if (isdfs)
+	if (isDFS || isBFS)
 	{
-		dfsRouteColor = ofColor(236, 152, 196);
-		escapeRouteColor = ofColor(129, 205, 251);
-
-		ofSetColor(escapeRouteColor);
 		ofSetLineWidth(5);
 
 		if (isOpen)
-			dfsdraw();
+			drawRoute();
 		else
 			cout << "You must open file first" << endl;
 	}
+
 	if (bShowInfo) {
+		ofSetColor(100);
 		// Show keyboard duplicates of menu functions
 		sprintf(str, " comsil project");
 		myFont.drawString(str, 15, ofGetHeight() - 20);
@@ -346,6 +361,9 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 }
 bool ofApp::readFile()
 {
+	isOpen = 0;
+	freeMemory();
+
 	ofFileDialogResult openFileResult = ofSystemLoadDialog("Select .maz file");
 	string filePath;
 	size_t pos;
@@ -371,6 +389,8 @@ bool ofApp::readFile()
 			else {
 				cout << "We found the target file." << endl;
 				isOpen = 1;
+				isDFS = 0;
+				isBFS = 0;
 			}
 
 			ofBuffer buffer(file);
@@ -457,9 +477,24 @@ void ofApp::freeMemory() {
 
 bool ofApp::DFS()
 {
+	if (isDFS) {
+
+		for (int i = 0; i < HEIGHT * WIDTH; i++) {
+			route[i] &= ~ROUTE_DFS;
+		}
+
+		return 0;
+	}
+
+	for (int i = 0; i < HEIGHT * WIDTH; i++) {
+		route[i] &= ~ROUTE_ESCAPE;
+	}
+
+	// DFS 탐색 스택
 	stack<pair<int, int>> dfsStack;
 	dfsStack.push({ 0, 0 });
 
+	// 탈출 경로 스택
 	stack<pair<int, int>> escapeStack;
 
 	while (!dfsStack.empty()) {
@@ -470,31 +505,38 @@ bool ofApp::DFS()
 		int i = top.first;
 		int j = top.second;
 
-		if (route[i * WIDTH + j] & ROUTE_BFS) {
+		// 방문한 경로이면 건너뛰기
+		if (route[i * WIDTH + j] & ROUTE_DFS) {
 			continue;
 		}
 
+		// 우선 탈출 경로에 추가
 		escapeStack.push(top);
 
-		route[i * WIDTH + j] |= ROUTE_BFS;
+		// 방문 표시
+		route[i * WIDTH + j] |= ROUTE_DFS;
 
+		// 종점이면 break
 		if (i == HEIGHT - 1 && j == WIDTH - 1) break;
 
 		int originalSize = dfsStack.size();
 
-		if (!(maze[i * WIDTH + j] & WALL_UP) && ! (route[(i - 1)*WIDTH+j] & ROUTE_BFS)) {
-			dfsStack.push({ i - 1, j });
-		}
-		if (!(maze[i * WIDTH + j] & WALL_DOWN) && ! (route[(i + 1) * WIDTH + j] & ROUTE_BFS)) {
-			dfsStack.push({ i + 1, j });
-		}
-		if (!(maze[i * WIDTH + j] & WALL_LEFT) && ! (route[i * WIDTH + j - 1] & ROUTE_BFS)) {
-			dfsStack.push({ i, j - 1 });
-		}
-		if (!(maze[i * WIDTH + j] & WALL_RIGHT) && ! (route[i * WIDTH + j + 1] & ROUTE_BFS)) {
-			dfsStack.push({ i, j + 1 });
+		int di[4] = { -1, 0, 1, 0 };
+		int dj[4] = { 0, -1, 0, 1 };
+		int dw[4] = { WALL_UP, WALL_LEFT, WALL_DOWN, WALL_RIGHT };
+
+		for (int k = 0; k < 4; k++) {
+			int ni = i + di[k];
+			int nj = j + dj[k];
+
+			if (!(maze[i * WIDTH + j] & dw[k]) && !(route[ni * WIDTH + nj] & ROUTE_DFS)) {
+				dfsStack.push({ ni, nj });
+			}
+			;
 		}
 
+		// 더 이상 진행할 길이 없고
+		// dfsStack이 비어있지 않은 경우
 		if (originalSize == dfsStack.size() && !dfsStack.empty()) {
 
 			top = dfsStack.top();
@@ -502,6 +544,7 @@ bool ofApp::DFS()
 			i = top.first;
 			j = top.second;
 
+			// dfs 마지막 탐색 지점을 갈 수 있는 정점을 방문할 때까지 탈출 경로 stack pop
 			while (!escapeStack.empty()) {
 
 				auto rTop = escapeStack.top();
@@ -528,6 +571,7 @@ bool ofApp::DFS()
 		}
 	}
 
+	// 탈출 경로들에 flag 추가
 	while (!escapeStack.empty()) {
 		auto top = escapeStack.top();
 		escapeStack.pop();
@@ -538,14 +582,89 @@ bool ofApp::DFS()
 		route[i * WIDTH + j] |= ROUTE_ESCAPE;
 	}
 
-	isDFS = 1;
-	isdfs = true;
+	return 1;
+}
+
+bool ofApp::BFS()
+{
+	if (isBFS) {
+
+		for (int i = 0; i < HEIGHT * WIDTH; i++) {
+			route[i] &= ~ROUTE_BFS;
+		}
+
+		return 0;
+	}
+
+	for (int i = 0; i < HEIGHT * WIDTH; i++) {
+		route[i] &= ~ROUTE_ESCAPE;
+	}
+
+	queue<pair<int, int>> bfsQueue;
+	bfsQueue.push({ 0, 0 });
+
+	vector<int> escapeRoute(WIDTH * HEIGHT, -1);
+	escapeRoute[0] = 0;
+
+	while (!bfsQueue.empty()) {
+
+		auto top = bfsQueue.front();
+		bfsQueue.pop();
+
+		int i = top.first;
+		int j = top.second;
+
+		if (route[i * WIDTH + j] & ROUTE_BFS) {
+			continue;
+		}
+
+		route[i * WIDTH + j] |= ROUTE_BFS;
+
+		if (i == HEIGHT - 1 && j == WIDTH - 1) break;
+
+		int di[4] = { 1, -1, 0, 0 };
+		int dj[4] = { 0, 0, 1, -1 };
+		int dw[4] = { WALL_DOWN, WALL_UP, WALL_RIGHT, WALL_LEFT };
+
+		for (int k = 0; k < 4; k++) {
+			int ni = i + di[k];
+			int nj = j + dj[k];
+
+			if (!(maze[i * WIDTH + j] & dw[k]) && !(route[ni * WIDTH + nj] & ROUTE_BFS)) {
+				escapeRoute[ni * WIDTH + nj] = escapeRoute[i * WIDTH + j] + 1;
+				bfsQueue.push({ ni, nj });
+			}
+;		}
+
+	}
+
+	route[WIDTH * HEIGHT - 1] |= ROUTE_ESCAPE;
+
+	for (int i = HEIGHT - 1, j = WIDTH-1; !(i==0&&j==0);) {
+
+		int di[4] = { 1, -1, 0, 0 };
+		int dj[4] = { 0, 0, 1, -1 };
+		int dw[4] = { WALL_DOWN, WALL_UP, WALL_RIGHT, WALL_LEFT };
+
+		for (int k = 0; k < 4; k++) {
+			int ni = i + di[k];
+			int nj = j + dj[k];
+
+			if (ni < 0 || nj < 0 || ni >= HEIGHT || nj >= WIDTH || maze[i * WIDTH + j] & dw[k]) continue;
+
+			if (escapeRoute[ni * WIDTH + nj] == escapeRoute[i * WIDTH + j] - 1) {
+				i = ni;
+				j = nj;
+				route[i * WIDTH + j] |= ROUTE_ESCAPE;
+				break;
+			}
+		}
+	}
 
 	return 1;
 }
 
-void ofApp::dfsdraw()
-{
+void ofApp::drawRoute() {
 	//TO DO 
 	for (int i = 0; i < HEIGHT; i++) {
 		for (int j = 0; j < WIDTH; j++) {
@@ -554,30 +673,33 @@ void ofApp::dfsdraw()
 			int dj[4] = { 0, 0, 1, -1 };
 			int dw[4] = { WALL_DOWN, WALL_UP, WALL_RIGHT, WALL_LEFT };
 
-			int cx = j * MAZE_SIZE + MAZE_SIZE / 2;
-			int cy = i * MAZE_SIZE + MAZE_SIZE / 2;
+			int cx = j * maze_size + maze_size / 2;
+			int cy = i * maze_size + maze_size / 2;
 
 			for (int k = 0; k < 4; k++) {
 
 				int ni = i + di[k];
 				int nj = j + dj[k];
 
-				if (ni < 0 || ni >= HEIGHT || j < 0 || nj >= WIDTH || !route[ni*WIDTH+nj] || maze[i * WIDTH + j] & dw[k]) continue;
+				if (ni < 0 || ni >= HEIGHT || j < 0 || nj >= WIDTH || !route[ni * WIDTH + nj] || maze[i * WIDTH + j] & dw[k]) continue;
+				if (!(route[i * WIDTH + j] & ROUTE_FULL)) continue;
 
-				int dx = nj * MAZE_SIZE + MAZE_SIZE / 2;
-				int dy = ni * MAZE_SIZE + MAZE_SIZE / 2;
+				int dx = nj * maze_size + maze_size / 2;
+				int dy = ni * maze_size + maze_size / 2;
 
 				if (route[i * WIDTH + j] & ROUTE_ESCAPE && route[ni * WIDTH + nj] & ROUTE_ESCAPE) {
 					ofSetColor(escapeRouteColor);
 				}
-				else {
+				else if (route[i * WIDTH + j] & ROUTE_BFS && route[ni * WIDTH + nj] & ROUTE_BFS) {
+					ofSetColor(bfsRouteColor);
+				}
+				else if (route[i * WIDTH + j] & ROUTE_DFS && route[ni * WIDTH + nj] & ROUTE_DFS) {
 					ofSetColor(dfsRouteColor);
 				}
 
-				ofDrawLine(cx, cy, dx, dy);
+				ofDrawLine(x_offset + cx, y_offset + cy, x_offset + dx, y_offset + dy);
 
 			}
 		}
 	}
 }
-

@@ -39,8 +39,10 @@
 #define ROUTE_DFS 0b001
 #define ROUTE_BFS 0b010
 #define ROUTE_ESCAPE 0b100
+#define ROUTE_FULL 0b111
 
-#define MAZE_SIZE 40
+// maze size offset
+#define MAZE_OFFSET 10
 
 class ofApp : public ofBaseApp {
 
@@ -62,7 +64,8 @@ class ofApp : public ofBaseApp {
 		bool readFile();
 		void freeMemory();
 		bool DFS();
-		void dfsdraw();
+		bool BFS();
+		void drawRoute();
 		int HEIGHT;//미로의 높이
 		int WIDTH;//미로의 너비
 		char** input;//텍스트 파일의 모든 정보를 담는 이차원 배열이다.
@@ -75,6 +78,7 @@ class ofApp : public ofBaseApp {
 		int isOpen; //파일이 열렸는지를 판단하는 변수. 0이면 안열렸고 1이면 열렸다.
 		int isDFS;//DFS함수를 실행시켰는지 판단하는 변수. 0이면 실행안했고 1이면 실행했다.
 		int isBFS;//BFS함수를 실행시켰는지 판단하는 변수. 0이면 실행안했고 1이면 실행했다.
+		int maze_size, x_offset, y_offset;
 		// Menu
 		ofxWinMenu * menu; // Menu object
 		void appMenuFunction(string title, bool bChecked); // Menu return function
@@ -90,12 +94,12 @@ class ofApp : public ofBaseApp {
 		bool bShowInfo;
 		bool bFullscreen;
 		bool bTopmost;
-		bool isdfs;
 		// Example functions
  		void doFullScreen(bool bFull);
 		void doTopmost(bool bTop);
 
-		ofColor escapeRouteColor;
+		ofColor bfsRouteColor;
 		ofColor dfsRouteColor;
+		ofColor escapeRouteColor;
 
 };
