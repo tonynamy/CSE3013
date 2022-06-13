@@ -389,6 +389,8 @@ bool ofApp::readFile()
 			else {
 				cout << "We found the target file." << endl;
 				isOpen = 1;
+				isDFS = 0;
+				isBFS = 0;
 			}
 
 			ofBuffer buffer(file);
@@ -488,9 +490,11 @@ bool ofApp::DFS()
 		route[i] &= ~ROUTE_ESCAPE;
 	}
 
+	// DFS 탐색 스택
 	stack<pair<int, int>> dfsStack;
 	dfsStack.push({ 0, 0 });
 
+	// 탈출 경로 스택
 	stack<pair<int, int>> escapeStack;
 
 	while (!dfsStack.empty()) {
@@ -501,21 +505,25 @@ bool ofApp::DFS()
 		int i = top.first;
 		int j = top.second;
 
+		// 방문한 경로이면 건너뛰기
 		if (route[i * WIDTH + j] & ROUTE_DFS) {
 			continue;
 		}
 
+		// 우선 탈출 경로에 추가
 		escapeStack.push(top);
 
+		// 방문 표시
 		route[i * WIDTH + j] |= ROUTE_DFS;
 
+		// 종점이면 break
 		if (i == HEIGHT - 1 && j == WIDTH - 1) break;
 
 		int originalSize = dfsStack.size();
 
-		int di[4] = { 1, -1, 0, 0 };
-		int dj[4] = { 0, 0, 1, -1 };
-		int dw[4] = { WALL_DOWN, WALL_UP, WALL_RIGHT, WALL_LEFT };
+		int di[4] = { -1, 0, 1, 0 };
+		int dj[4] = { 0, -1, 0, 1 };
+		int dw[4] = { WALL_UP, WALL_LEFT, WALL_DOWN, WALL_RIGHT };
 
 		for (int k = 0; k < 4; k++) {
 			int ni = i + di[k];
@@ -527,6 +535,8 @@ bool ofApp::DFS()
 			;
 		}
 
+		// 더 이상 진행할 길이 없고
+		// dfsStack이 비어있지 않은 경우
 		if (originalSize == dfsStack.size() && !dfsStack.empty()) {
 
 			top = dfsStack.top();
@@ -534,6 +544,7 @@ bool ofApp::DFS()
 			i = top.first;
 			j = top.second;
 
+			// dfs 마지막 탐색 지점을 갈 수 있는 정점을 방문할 때까지 탈출 경로 stack pop
 			while (!escapeStack.empty()) {
 
 				auto rTop = escapeStack.top();
@@ -559,7 +570,8 @@ bool ofApp::DFS()
 
 		}
 	}
-	
+
+	// 탈출 경로들에 flag 추가
 	while (!escapeStack.empty()) {
 		auto top = escapeStack.top();
 		escapeStack.pop();
@@ -610,7 +622,7 @@ bool ofApp::BFS()
 
 		if (i == HEIGHT - 1 && j == WIDTH - 1) break;
 
-		int di[4] = { 1, -1, 0, 0 };
+		int di[4] = { 1 , -1, 0, 0 };
 		int dj[4] = { 0, 0, 1, -1 };
 		int dw[4] = { WALL_DOWN, WALL_UP, WALL_RIGHT, WALL_LEFT };
 
